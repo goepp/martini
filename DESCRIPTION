@@ -26,6 +26,7 @@ Imports:
   snpStats (>= 1.20.0),
   stats,
   utils,
+  future.apply
 Suggests:
   biomaRt (>= 2.34.1),
   circlize (>= 0.4.11),
