@@ -7,3 +7,6 @@
 ^man-roxygen
 ^\.github$
 ^\.future*$
+^env$
+^Makefile$
+^environment\.yml$
