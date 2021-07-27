@@ -53,28 +53,60 @@ scones.cv <- function(gwas, net, covars = data.frame(),
 #' @keywords internal
 mincut.cv <- function(gwas, net, covars, etas, lambdas, criterion, score, 
                       sigmod, family, link, max_prop_snp) {
-  
+  etas <- sort(etas)
   # prepare data
   gwas <- permute_snpMatrix(gwas)
   A <- get_adjacency(gwas, net)
   
   # grid search
   K <- cut(seq(1, nrow(gwas[['fam']])), breaks = 10, labels = FALSE)
-  folds <- lapply(unique(K), function(k) {
-    
+  folds <- array(list(NA), dim = c(length(lambdas), length(etas), 10),
+                 dimnames = list(lambdas, etas, paste0("fold_", 1:10)))
+  invalid_models <- matrix(0, nrow = length(lambdas), ncol = length(etas), 
+                           dimnames = list(lambdas, etas))
+  etas_ind_seq <- c(seq(floor(length(etas) / 2), 1), 
+                    seq(floor(length(etas) / 2) + 1, length(etas)))
+  for (k in unique(K)) {
     gwas_k <- subset_snpMatrix(gwas, (K!=k))
     covars_k <- arrange_covars(gwas_k, covars)
-    c_k <- snp_test(gwas_k, covars_k, score, family, link)
-    
-    lapply(lambdas, function(lambda) {
-      c_k <- if (sigmod) c_k + lambda * rowSums(A) else c_k
-      lapply(etas, function(eta) {
-        selected_k <- mincut_c(c_k, eta, lambda, A)
-        score_fold(gwas_k, covars_k, net, selected_k, criterion, max_prop_snp)
-      })
-    })
-  })
-  
+    for (lambda_ind in seq_along(lambdas)) {
+      for(eta_ind in etas_ind_seq) {
+        if (!invalid_models[lambda_ind, eta_ind]) {
+          # Only compute cones solution if (eta, lambda) is not an invalid model
+          print(paste0("Computing model (", lambda_ind, ", ", eta_ind, ")"))
+          ## Compute cones solution
+          c_k <- snp_test(gwas_k, covars_k, score, family, link)
+          c_k <- if (sigmod) c_k + lambda * rowSums(A) else c_k
+          if (sum(selected_k) == 0) {
+            # If the model is too small (no SNPs are selected):
+            ## Forbid smaller models
+            invalid_models[lambda_ind, eta_ind:length(etas)] <- 1
+            print(paste0("Model (", lambda_ind, ", ", eta_ind, ") is invalid"))
+            print(invalid_models)
+            ## Set score to -Inf for all subsequent invalid models (i.e. larger etas)
+            folds[lambda_ind, eta_ind:length(etas), 1:max(K)] <- -Inf
+          } else if (sum(selected_k) / length(selected_k) > max_prop_snp) {
+            # If the model is too big (more than max_prop_snp percent of SNPs are selected)
+            # Forbid larger models
+            invalid_models[lambda_ind, 1:eta_ind] <- 1
+            print(paste0("Model (", lambda_ind, ", ", eta_ind, ") is invalid"))
+            print(invalid_models)
+            # set score to -Inf for all subsequent invalid models (i.e. smaller etas)
+            folds[lambda_ind, 1:eta_ind, 1:max(K)] <- -Inf
+          } else {
+            print(paste0("Model (", lambda_ind, ", ", eta_ind, ") is valid"))
+            print(invalid_models)
+            folds[[lambda_ind, eta_ind, k]] <- score_fold(gwas_k, covars_k, net, selected_k,
+                                                          criterion, max_prop_snp = 0.5)
+          }
+          # end of "if(!invalid_models)" loop
+        }
+        # end of eta_ind loop
+      }
+      # end of lambda_ind loop
+    }
+    # end of fold loop
+  }
   grid <- matrix(0, nrow = length(lambdas), ncol = length(etas), 
                  dimnames = list(lambdas, etas))
   
@@ -143,11 +175,11 @@ scones <- function(gwas, net, eta, lambda, covars = data.frame(),
 #' @template return_cones
 #' @keywords internal
 mincut <- function(gwas, net, covars, eta, lambda, score, sigmod, family, link){
- 
+
   A <- get_adjacency(gwas, net)
-   
+
   covars <- arrange_covars(gwas, covars)
-  
+
   map <- sanitize_map(gwas)
   c <- snp_test(gwas, covars, score, family, link)
   c <- if (sigmod) c + lambda * rowSums(A) else c
@@ -231,7 +263,7 @@ score_fold <- function(gwas, covars, net, selected, criterion, max_prop_snp) {
     if (criterion == 'stability') {
       score <- selected
     } else if (criterion %in% c('bic', 'aic', 'aicc')) {
-        
+
       phenotypes <- gwas[['fam']][['affected']]
       genotypes <- as(gwas[['genotypes']], 'numeric')
       genotypes <- as.data.frame(genotypes[, selected])
