@@ -1,4 +1,4 @@
 # file required for document to generate the corrent NAMESPACE
-#' @useDynLib martini
+#' @useDynLib martini, .registration = TRUE
 #' @importFrom Rcpp evalCpp
 NULL

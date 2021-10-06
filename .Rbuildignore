@@ -10,3 +10,5 @@
 ^env$
 ^Makefile$
 ^environment\.yml$
+^doc$
+^Meta$

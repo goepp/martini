@@ -10,7 +10,7 @@
 #' @return A list with vector indicating if the feature was selected and the 
 #' objective score.
 maxflow <- function(A, As, At) {
-    .Call('_martini_maxflow', PACKAGE = 'martini', A, As, At)
+    .Call(`_martini_maxflow`, A, As, At)
 }
 
 #' Min-cut algorithm
@@ -23,7 +23,7 @@ maxflow <- function(A, As, At) {
 #' @return A list with vector indicating if the feature was selected and the 
 #' objective score.
 mincut_c <- function(c, eta, lambda, W) {
-    .Call('_martini_mincut_c', PACKAGE = 'martini', c, eta, lambda, W)
+    .Call(`_martini_mincut_c`, c, eta, lambda, W)
 }
 
 # Register entry points for exported C++ functions

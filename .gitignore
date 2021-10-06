@@ -31,3 +31,5 @@ src/Makevars
 /install-sh
 /missing
 /stamp-h1
+/doc/
+/Meta/
