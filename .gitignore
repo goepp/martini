@@ -12,6 +12,7 @@ martini.Rproj
 inst/doc
 src/Makevars
 *dylib
+.future/*
 
 # http://www.gnu.org/software/autoconf
 
